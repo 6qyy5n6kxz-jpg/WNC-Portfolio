@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Wine & Canvas — Portfolio</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;background:#fff;}
+    header{position:sticky;top:0;background:#fff;padding:12px;border-bottom:1px solid #eee;z-index:2}
+    .wrap{max-width:1100px;margin:0 auto;padding:12px;}
+    .controls{display:grid;grid-template-columns:1fr repeat(3, minmax(140px, 1fr));gap:10px}
+    input,select{padding:10px;border:1px solid #ddd;border-radius:10px;font-size:14px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;padding:16px 0}
+    .card{background:#fafafa;border:1px solid #eee;border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
+    .thumb{aspect-ratio:4/3;object-fit:cover;width:100%;display:block}
+    .meta{padding:10px 12px;font-size:13px;color:#333;display:flex;flex-direction:column;gap:6px}
+    .chips{display:flex;flex-wrap:wrap;gap:6px}
+    .chip{background:#fff;border:1px solid #eee;border-radius:999px;padding:4px 8px;font-size:12px}
+    .hidden{display:none}
+    @media (max-width:620px){ .controls{grid-template-columns:1fr; position:sticky; top:0} }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="controls">
+        <input id="q" placeholder="Search title, tags…" />
+        <select id="season"><option value="">All seasons</option></select>
+        <select id="difficulty"><option value="">All difficulties</option></select>
+        <select id="tag"><option value="">All tags</option></select>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div id="count" style="padding-top:10px;color:#666;font-size:13px;"></div>
+    <div id="grid" class="grid"></div>
+  </main>
+
+  <template id="card">
+    <a class="card" target="_blank" rel="noopener">
+      <img class="thumb" loading="lazy" />
+      <div class="meta">
+        <div class="title"></div>
+        <div class="chips"></div>
+        <div class="sub"></div>
+      </div>
+    </a>
+  </template>
+
+  <script src="https://cdn.jsdelivr.net/npm/flexsearch@0.8.212/dist/flexsearch.bundle.min.js"></script>
+  <script>
+    const APP_URL = 'https://script.google.com/macros/s/AKfycbx439H1XPMqTRtf9fcwGlqgl1EF3BGt96HbvbWK5dd4Ze9pPWDHwJOiJ07Z-pvmcNat5g/exec'; // Apps Script doGet endpoint
+
+    const els = {
+      q: document.getElementById('q'),
+      season: document.getElementById('season'),
+      difficulty: document.getElementById('difficulty'),
+      tag: document.getElementById('tag'),
+      grid: document.getElementById('grid'),
+      tpl: document.getElementById('card'),
+      count: document.getElementById('count')
+    };
+
+    let data = [];
+    const index = new FlexSearch.Document({
+      document: { id: 'id', index: ['name','description','tags'] },
+      tokenize: 'reverse'
+    });
+
+    async function init(){
+      const res = await fetch(APP_URL);
+      const json = await res.json();
+      data = json.items || [];
+
+      // build index
+      data.forEach(item => index.add(item));
+
+      // populate filters
+      fillSelect(els.season, uniq(data.map(x => x.season)).sort());
+      fillSelect(els.difficulty, uniq(data.map(x => x.difficulty)).sort());
+      fillSelect(els.tag, uniq(data.flatMap(x => x.tags)).sort());
+
+      render();
+      [els.q, els.season, els.difficulty, els.tag].forEach(el => el.addEventListener('input', render));
+    }
+
+    function uniq(arr){ return [...new Set(arr.filter(Boolean))]; }
+    function fillSelect(sel, values){
+      values.forEach(v => {
+        const o = document.createElement('option');
+        o.value = v; o.textContent = v;
+        sel.appendChild(o);
+      });
+    }
+
+    function filterItems(){
+      const q = els.q.value.trim();
+      const season = els.season.value;
+      const difficulty = els.difficulty.value;
+      const tag = els.tag.value;
+
+      let ids = null;
+      if (q){
+        const results = index.search(q, { enrich: true });
+        const byId = new Set(results.flatMap(r => r.result.map(x => x.id)));
+        ids = byId;
+      }
+
+      return data.filter(item => {
+        if (ids && !ids.has(item.id)) return false;
+        if (season && item.season !== season) return false;
+        if (difficulty && item.difficulty !== difficulty) return false;
+        if (tag && !item.tags.includes(tag)) return false;
+        return true;
+      });
+    }
+
+    function render(){
+      const items = filterItems();
+      els.count.textContent = `${items.length} of ${data.length} paintings`;
+
+      els.grid.innerHTML = '';
+      const frag = document.createDocumentFragment();
+
+      items.forEach(item => {
+        const node = els.tpl.content.cloneNode(true);
+        const a = node.querySelector('.card');
+        const img = node.querySelector('.thumb');
+        const title = node.querySelector('.title');
+        const chips = node.querySelector('.chips');
+        const sub = node.querySelector('.sub');
+
+        a.href = item.link;
+        img.src = item.image;
+        img.alt = item.name;
+        title.textContent = item.name;
+        sub.textContent = `${item.season} • ${item.difficulty}`;
+        (item.tags || []).slice(0,6).forEach(t => {
+          const c = document.createElement('span');
+          c.className = 'chip'; c.textContent = t;
+          chips.appendChild(c);
+        });
+
+        frag.appendChild(node);
+      });
+
+      els.grid.appendChild(frag);
+    }
+
+    init();
+  </script>
+</body>
+</html>
