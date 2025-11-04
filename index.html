@@ -39,7 +39,7 @@
 
   <template id="card">
     <a class="card" target="_blank" rel="noopener">
-      <img class="thumb" loading="lazy" decoding="async" />
+      <img class="thumb" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
       <div class="meta">
         <div class="title"></div>
         <div class="chips"></div>
@@ -94,9 +94,8 @@
         const clean = normalizeName(item.name);
         const tagString = (item.tags || []).join(' ');
         const searchText = [clean, tagString, item.description || ''].join(' ').toLowerCase();
-        // Ensure the image URL is the public uc?export=view pattern (feed should already send this)
-        const image = item.image || ('https://drive.google.com/uc?export=view&id=' + item.id);
-        return { ...item, cleanName: clean, tagString, searchText, image };
+        // image + fallbacks are now provided by API
+        return { ...item, cleanName: clean, tagString, searchText };
       });
 
       // build index
@@ -135,6 +134,18 @@
       });
     }
 
+    // NEW: robust image loader with fallbacks
+    function setImageWithFallback(imgEl, primary, fallbacks=[]) {
+      const queue = [primary, ...fallbacks].filter(Boolean);
+      let i = 0;
+      const tryNext = () => {
+        if (i >= queue.length) return;
+        imgEl.src = queue[i++];
+      };
+      imgEl.onerror = () => tryNext();
+      tryNext();
+    }
+
     function render(){
       const items = filterItems();
       els.count.textContent = `${items.length} of ${data.length} paintings`;
@@ -152,9 +163,9 @@
 
         a.href = item.link;
 
-        img.src = item.image;
+        // Use API-provided image + fallbacks
+        setImageWithFallback(img, item.image, item.fallbacks);
         img.alt = item.cleanName || item.name || '';
-        img.onerror = () => { img.onerror = null; img.src = item.link; }; // fallback if thumb blocked
 
         title.textContent = item.cleanName || item.name || '';
         const diffText = item.difficulty ? String(item.difficulty) : '–';
