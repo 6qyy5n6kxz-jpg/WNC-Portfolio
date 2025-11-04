@@ -11,7 +11,7 @@
     .controls{display:grid;grid-template-columns:1fr repeat(3, minmax(140px, 1fr));gap:10px}
     input,select{padding:10px;border:1px solid #ddd;border-radius:10px;font-size:14px}
     .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;padding:16px 0}
-    .card{background:#fafafa;border:1px solid #eee;border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
+    .card{background:#fafafa;border:1px solid #eee;border-radius:16px;overflow:hidden;display:flex;flex-direction:column;text-decoration:none;color:inherit}
     .thumb{aspect-ratio:4/3;object-fit:cover;width:100%;display:block}
     .meta{padding:10px 12px;font-size:13px;color:#333;display:flex;flex-direction:column;gap:6px}
     .chips{display:flex;flex-wrap:wrap;gap:6px}
@@ -39,7 +39,7 @@
 
   <template id="card">
     <a class="card" target="_blank" rel="noopener">
-      <img class="thumb" loading="lazy" />
+      <img class="thumb" loading="lazy" decoding="async" />
       <div class="meta">
         <div class="title"></div>
         <div class="chips"></div>
@@ -50,7 +50,8 @@
 
   <script src="https://cdn.jsdelivr.net/npm/flexsearch@0.8.212/dist/flexsearch.bundle.min.js"></script>
   <script>
-    const APP_URL = 'https://script.google.com/macros/s/AKfycbx439H1XPMqTRtf9fcwGlqgl1EF3BGt96HbvbWK5dd4Ze9pPWDHwJOiJ07Z-pvmcNat5g/exec'; // Apps Script doGet endpoint
+    // Apps Script doGet endpoint
+    const APP_URL = 'https://script.google.com/macros/s/AKfycbx439H1XPMqTRtf9fcwGlqgl1EF3BGt96HbvbWK5dd4Ze9pPWDHwJOiJ07Z-pvmcNat5g/exec';
 
     const els = {
       q: document.getElementById('q'),
@@ -63,20 +64,45 @@
     };
 
     let data = [];
+    // Index a single normalized field for better matches
     const index = new FlexSearch.Document({
-      document: { id: 'id', index: ['name','description','tags'] },
-      tokenize: 'reverse'
+      document: { id: 'id', index: ['searchText'] },
+      tokenize: 'forward'
     });
 
+    function uniq(arr){ return [...new Set(arr.filter(v => v !== '' && v !== null && v !== undefined))]; }
+    function fillSelect(sel, values){
+      values.forEach(v => {
+        const o = document.createElement('option');
+        o.value = v; o.textContent = v;
+        sel.appendChild(o);
+      });
+    }
+    function normalizeName(name){
+      return (name || '')
+        .replace(/\.[a-z0-9]+$/i, '')   // drop extension
+        .replace(/[_-]+/g, ' ')         // underscores/hyphens -> space
+        .replace(/\s+/g, ' ')           // collapse spaces
+        .trim();
+    }
+
     async function init(){
-      const res = await fetch(APP_URL);
+      // cache-bust while testing
+      const res = await fetch(APP_URL + '?t=' + Date.now());
       const json = await res.json();
-      data = json.items || [];
+      data = (json.items || []).map(item => {
+        const clean = normalizeName(item.name);
+        const tagString = (item.tags || []).join(' ');
+        const searchText = [clean, tagString, item.description || ''].join(' ').toLowerCase();
+        // Ensure the image URL is the public uc?export=view pattern (feed should already send this)
+        const image = item.image || ('https://drive.google.com/uc?export=view&id=' + item.id);
+        return { ...item, cleanName: clean, tagString, searchText, image };
+      });
 
       // build index
       data.forEach(item => index.add(item));
 
-      // populate filters
+      // populate filters (may be sparse until AI finishes)
       fillSelect(els.season, uniq(data.map(x => x.season)).sort());
       fillSelect(els.difficulty, uniq(data.map(x => x.difficulty)).sort());
       fillSelect(els.tag, uniq(data.flatMap(x => x.tags)).sort());
@@ -85,33 +111,26 @@
       [els.q, els.season, els.difficulty, els.tag].forEach(el => el.addEventListener('input', render));
     }
 
-    function uniq(arr){ return [...new Set(arr.filter(Boolean))]; }
-    function fillSelect(sel, values){
-      values.forEach(v => {
-        const o = document.createElement('option');
-        o.value = v; o.textContent = v;
-        sel.appendChild(o);
-      });
-    }
-
     function filterItems(){
-      const q = els.q.value.trim();
+      const q = els.q.value.trim().toLowerCase();
       const season = els.season.value;
       const difficulty = els.difficulty.value;
       const tag = els.tag.value;
 
-      let ids = null;
+      let idAllow = null;
       if (q){
-        const results = index.search(q, { enrich: true });
-        const byId = new Set(results.flatMap(r => r.result.map(x => x.id)));
-        ids = byId;
+        const results = index.search(q, { enrich: true }) || [];
+        const ids = new Set(results.flatMap(r => (r.result || []).map(x => x.id)));
+        // substring fallback for robustness
+        data.forEach(d => { if (d.searchText.includes(q)) ids.add(d.id); });
+        idAllow = ids;
       }
 
       return data.filter(item => {
-        if (ids && !ids.has(item.id)) return false;
+        if (idAllow && !idAllow.has(item.id)) return false;
         if (season && item.season !== season) return false;
-        if (difficulty && item.difficulty !== difficulty) return false;
-        if (tag && !item.tags.includes(tag)) return false;
+        if (difficulty && String(item.difficulty) !== String(difficulty)) return false;
+        if (tag && !(item.tags || []).includes(tag)) return false;
         return true;
       });
     }
@@ -132,10 +151,16 @@
         const sub = node.querySelector('.sub');
 
         a.href = item.link;
+
         img.src = item.image;
-        img.alt = item.name;
-        title.textContent = item.name;
-        sub.textContent = `${item.season} • ${item.difficulty}`;
+        img.alt = item.cleanName || item.name || '';
+        img.onerror = () => { img.onerror = null; img.src = item.link; }; // fallback if thumb blocked
+
+        title.textContent = item.cleanName || item.name || '';
+        const diffText = item.difficulty ? String(item.difficulty) : '–';
+        const seasonText = item.season || '–';
+        sub.textContent = `${seasonText} • ${diffText}`;
+
         (item.tags || []).slice(0,6).forEach(t => {
           const c = document.createElement('span');
           c.className = 'chip'; c.textContent = t;
