@@ -2,188 +2,360 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Wine & Canvas — Portfolio</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wine & Canvas Toledo — Project Portfolio</title>
+  <meta name="description" content="Browse the Wine & Canvas Toledo project portfolio by season, format, difficulty, and theme." />
+
+  <!--
+    Phase 3 bridge:
+    Leave these blank until Command Center's public portfolio RPC is deployed.
+    When configured, this page reads the reviewed/public Project Library directly.
+    Until then it falls back to the existing Google Apps Script portfolio feed.
+  -->
+  <meta name="command-center-supabase-url" content="" />
+  <meta name="command-center-anon-key" content="" />
+
   <style>
-    body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;background:#fff;}
-    header{position:sticky;top:0;background:#fff;padding:12px;border-bottom:1px solid #eee;z-index:2}
-    .wrap{max-width:1100px;margin:0 auto;padding:12px;}
-    .controls{display:grid;grid-template-columns:1fr repeat(3, minmax(140px, 1fr));gap:10px}
-    input,select{padding:10px;border:1px solid #ddd;border-radius:10px;font-size:14px}
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;padding:16px 0}
-    .card{background:#fafafa;border:1px solid #eee;border-radius:16px;overflow:hidden;display:flex;flex-direction:column;text-decoration:none;color:inherit}
-    .thumb{aspect-ratio:4/3;object-fit:cover;width:100%;display:block}
-    .meta{padding:10px 12px;font-size:13px;color:#333;display:flex;flex-direction:column;gap:6px}
-    .chips{display:flex;flex-wrap:wrap;gap:6px}
-    .chip{background:#fff;border:1px solid #eee;border-radius:999px;padding:4px 8px;font-size:12px}
-    .hidden{display:none}
-    @media (max-width:620px){ .controls{grid-template-columns:1fr; position:sticky; top:0} }
+    :root{
+      color-scheme:light;
+      --ink:#171717;
+      --muted:#666;
+      --line:#e8e8e8;
+      --paper:#fff;
+      --soft:#f7f7f8;
+      --brand:#6d28d9;
+      --brand-soft:#f3e8ff;
+      --shadow:0 12px 34px rgba(0,0,0,.08);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#fbfbfc;color:var(--ink)}
+    button,input,select{font:inherit}
+    button{cursor:pointer}
+    .shell{max-width:1240px;margin:0 auto;padding:0 20px 48px}
+    .hero{padding:44px 0 24px}
+    .eyebrow{font-size:.78rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--brand)}
+    h1{margin:.45rem 0 .6rem;font-size:clamp(2rem,5vw,4rem);line-height:.98;letter-spacing:-.04em}
+    .lede{max-width:720px;margin:0;color:var(--muted);font-size:1.05rem;line-height:1.6}
+    .toolbar{position:sticky;top:0;z-index:20;margin:0 -20px;padding:14px 20px;background:rgba(251,251,252,.96);backdrop-filter:blur(12px);border-block:1px solid var(--line)}
+    .filters{display:grid;grid-template-columns:minmax(240px,2fr) repeat(4,minmax(130px,1fr));gap:10px}
+    input,select{min-height:46px;width:100%;border:1px solid #d7d7dc;border-radius:12px;background:#fff;padding:10px 12px;color:var(--ink)}
+    input:focus,select:focus,button:focus-visible{outline:3px solid rgba(109,40,217,.2);outline-offset:1px;border-color:var(--brand)}
+    .status{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 0 12px;color:var(--muted);font-size:.92rem}
+    .source{display:inline-flex;align-items:center;gap:6px}
+    .dot{width:8px;height:8px;border-radius:999px;background:#10b981}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(235px,1fr));gap:18px}
+    .card{appearance:none;border:1px solid var(--line);border-radius:18px;background:var(--paper);padding:0;overflow:hidden;text-align:left;box-shadow:0 1px 0 rgba(0,0,0,.02);transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}
+    .card:hover{transform:translateY(-2px);border-color:#c4b5fd;box-shadow:var(--shadow)}
+    .thumb-wrap{aspect-ratio:4/3;background:#f0f0f2;overflow:hidden}
+    .thumb{display:block;width:100%;height:100%;object-fit:cover}
+    .card-body{padding:14px}
+    .title{font-weight:800;font-size:1.02rem;line-height:1.3}
+    .meta{margin-top:7px;color:var(--muted);font-size:.85rem;line-height:1.45}
+    .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+    .chip{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:999px;background:var(--soft);padding:4px 8px;font-size:.72rem;color:#444}
+    .empty,.error{border:1px solid var(--line);border-radius:18px;background:#fff;padding:28px;color:var(--muted)}
+    .error{border-color:#fecaca;background:#fef2f2;color:#991b1b}
+    .more{display:flex;justify-content:center;padding:28px 0}
+    .more button{min-height:46px;border:1px solid #d8d8dc;border-radius:12px;background:#fff;padding:0 18px;font-weight:750}
+    dialog{width:min(920px,calc(100vw - 28px));max-height:92vh;border:0;border-radius:22px;padding:0;box-shadow:0 24px 90px rgba(0,0,0,.25)}
+    dialog::backdrop{background:rgba(0,0,0,.58)}
+    .modal{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(280px,.7fr)}
+    .modal-media{min-height:360px;background:#111;display:flex;align-items:center;justify-content:center}
+    .modal-media img{max-width:100%;max-height:75vh;display:block;object-fit:contain}
+    .modal-copy{padding:26px;overflow:auto}
+    .modal-copy h2{margin:.4rem 0 1rem;font-size:1.65rem}
+    .modal-copy p{color:#555;line-height:1.6}
+    .close{border:1px solid var(--line);border-radius:10px;background:#fff;min-height:42px;padding:0 13px;font-weight:700}
+    .modal-head{display:flex;align-items:center;justify-content:space-between;gap:16px}
+    @media(max-width:850px){
+      .filters{grid-template-columns:1fr 1fr}
+      .filters .search{grid-column:1/-1}
+      .modal{grid-template-columns:1fr}
+      .modal-media{min-height:260px}
+    }
+    @media(max-width:560px){
+      .shell{padding-inline:14px}
+      .toolbar{margin-inline:-14px;padding-inline:14px}
+      .filters{grid-template-columns:1fr}
+      .filters .search{grid-column:auto}
+      .hero{padding-top:30px}
+      .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+      .card-body{padding:11px}
+      .title{font-size:.9rem}
+      .meta{font-size:.75rem}
+      .chips{display:none}
+    }
   </style>
 </head>
 <body>
-  <header>
-    <div class="wrap">
-      <div class="controls">
-        <input id="q" placeholder="Search title, tags…" />
-        <select id="season"><option value="">All seasons</option></select>
-        <select id="difficulty"><option value="">All difficulties</option></select>
-        <select id="tag"><option value="">All tags</option></select>
+  <div class="shell">
+    <header class="hero">
+      <div class="eyebrow">Wine & Canvas Toledo</div>
+      <h1>Choose your project.</h1>
+      <p class="lede">Browse our project portfolio for private parties, public events, family classes, blacklight nights, and specialty experiences. Availability and format can vary by event.</p>
+    </header>
+
+    <div class="toolbar">
+      <div class="filters">
+        <input class="search" id="q" type="search" placeholder="Search paintings, themes, descriptions…" aria-label="Search projects" />
+        <select id="season" aria-label="Season"><option value="">All seasons</option></select>
+        <select id="format" aria-label="Format"><option value="">All formats</option></select>
+        <select id="experience" aria-label="Experience"><option value="">All experiences</option><option value="blacklight">Blacklight</option><option value="standard">Standard lighting</option></select>
+        <select id="tag" aria-label="Theme"><option value="">All themes</option></select>
       </div>
     </div>
-  </header>
 
-  <main class="wrap">
-    <div id="count" style="padding-top:10px;color:#666;font-size:13px;"></div>
-    <div id="grid" class="grid"></div>
-  </main>
+    <div class="status">
+      <div id="count">Loading portfolio…</div>
+      <div id="source" class="source" hidden><span class="dot"></span><span></span></div>
+    </div>
 
-  <template id="card">
-    <a class="card" target="_blank" rel="noopener">
-      <img class="thumb" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
-      <div class="meta">
-        <div class="title"></div>
-        <div class="chips"></div>
-        <div class="sub"></div>
+    <main>
+      <div id="error" class="error" hidden></div>
+      <div id="grid" class="grid" aria-live="polite"></div>
+      <div class="more"><button id="more" type="button" hidden>Show more</button></div>
+    </main>
+  </div>
+
+  <dialog id="details">
+    <div class="modal">
+      <div class="modal-media"><img id="detail-image" alt="" /></div>
+      <div class="modal-copy">
+        <div class="modal-head"><div class="eyebrow">Project details</div><button class="close" id="close" type="button">Close</button></div>
+        <h2 id="detail-title"></h2>
+        <p id="detail-description"></p>
+        <div id="detail-meta" class="chips"></div>
       </div>
-    </a>
-  </template>
+    </div>
+  </dialog>
 
-  <script src="https://cdn.jsdelivr.net/npm/flexsearch@0.8.212/dist/flexsearch.bundle.min.js"></script>
   <script>
-    // Apps Script doGet endpoint
-    const APP_URL = 'https://script.google.com/macros/s/AKfycbxhhQEqe3Nb33v1d76NcseXmRy6IhiCB8w_Sjze4ZABB2gJ3oBCFkOkQR-x4Qo7OPtohg/exec';
+    const LEGACY_APP_URL='https://script.google.com/macros/s/AKfycbxhhQEqe3Nb33v1d76NcseXmRy6IhiCB8w_Sjze4ZABB2gJ3oBCFkOkQR-x4Qo7OPtohg/exec';
+    const CC_URL=document.querySelector('meta[name="command-center-supabase-url"]')?.content?.trim()||'';
+    const CC_KEY=document.querySelector('meta[name="command-center-anon-key"]')?.content?.trim()||'';
+    const PAGE_SIZE=48;
 
-    const els = {
-      q: document.getElementById('q'),
-      season: document.getElementById('season'),
-      difficulty: document.getElementById('difficulty'),
-      tag: document.getElementById('tag'),
-      grid: document.getElementById('grid'),
-      tpl: document.getElementById('card'),
-      count: document.getElementById('count')
+    const els={
+      q:document.getElementById('q'),season:document.getElementById('season'),
+      format:document.getElementById('format'),experience:document.getElementById('experience'),
+      tag:document.getElementById('tag'),grid:document.getElementById('grid'),
+      count:document.getElementById('count'),more:document.getElementById('more'),
+      error:document.getElementById('error'),source:document.getElementById('source'),
+      dialog:document.getElementById('details'),close:document.getElementById('close'),
+      detailImage:document.getElementById('detail-image'),detailTitle:document.getElementById('detail-title'),
+      detailDescription:document.getElementById('detail-description'),detailMeta:document.getElementById('detail-meta')
     };
 
-    let data = [];
-    // Index a single normalized field for better matches
-    const index = new FlexSearch.Document({
-      document: { id: 'id', index: ['searchText'] },
-      tokenize: 'forward'
-    });
+    let data=[];
+    let visibleCount=PAGE_SIZE;
 
-    function uniq(arr){ return [...new Set(arr.filter(v => v !== '' && v !== null && v !== undefined))]; }
-    function fillSelect(sel, values){
-      values.forEach(v => {
-        const o = document.createElement('option');
-        o.value = v; o.textContent = v;
-        sel.appendChild(o);
-      });
-    }
-    function normalizeName(name){
-      return (name || '')
-        .replace(/\.[a-z0-9]+$/i, '')   // drop extension
-        .replace(/[_-]+/g, ' ')         // underscores/hyphens -> space
-        .replace(/\s+/g, ' ')           // collapse spaces
-        .trim();
-    }
+    const cleanName=(value='')=>String(value).replace(/\.[a-z0-9]+$/i,'').replace(/[_-]+/g,' ').replace(/\s+/g,' ').trim();
+    const uniq=(values)=>[...new Set(values.filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b)));
+    const pretty=(value='')=>String(value).replaceAll('_',' ').replace(/^./,c=>c.toUpperCase());
 
-    async function init(){
-      // cache-bust while testing
-      const res = await fetch(APP_URL + '?t=' + Date.now());
-      const json = await res.json();
-      data = (json.items || []).map(item => {
-        const clean = normalizeName(item.name);
-        const tagString = (item.tags || []).join(' ');
-        const searchText = [clean, tagString, item.description || ''].join(' ').toLowerCase();
-        // image + fallbacks are now provided by API
-        return { ...item, cleanName: clean, tagString, searchText };
-      });
-
-      // build index
-      data.forEach(item => index.add(item));
-
-      // populate filters (may be sparse until AI finishes)
-      fillSelect(els.season, uniq(data.map(x => x.season)).sort());
-      fillSelect(els.difficulty, uniq(data.map(x => x.difficulty)).sort());
-      fillSelect(els.tag, uniq(data.flatMap(x => x.tags)).sort());
-
-      render();
-      [els.q, els.season, els.difficulty, els.tag].forEach(el => el.addEventListener('input', render));
-    }
-
-    function filterItems(){
-      const q = els.q.value.trim().toLowerCase();
-      const season = els.season.value;
-      const difficulty = els.difficulty.value;
-      const tag = els.tag.value;
-
-      let idAllow = null;
-      if (q){
-        const results = index.search(q, { enrich: true }) || [];
-        const ids = new Set(results.flatMap(r => (r.result || []).map(x => x.id)));
-        // substring fallback for robustness
-        data.forEach(d => { if (d.searchText.includes(q)) ids.add(d.id); });
-        idAllow = ids;
-      }
-
-      return data.filter(item => {
-        if (idAllow && !idAllow.has(item.id)) return false;
-        if (season && item.season !== season) return false;
-        if (difficulty && String(item.difficulty) !== String(difficulty)) return false;
-        if (tag && !(item.tags || []).includes(tag)) return false;
-        return true;
-      });
-    }
-
-    // NEW: robust image loader with fallbacks
-    function setImageWithFallback(imgEl, primary, fallbacks=[]) {
-      const queue = [primary, ...fallbacks].filter(Boolean);
-      let i = 0;
-      const tryNext = () => {
-        if (i >= queue.length) return;
-        imgEl.src = queue[i++];
+    function normalizeLegacy(item){
+      return {
+        id:String(item.id||crypto.randomUUID()),
+        title:cleanName(item.name||item.title),
+        image:item.image||item.src||null,
+        season:item.season||'',
+        difficulty:item.difficulty||null,
+        tags:Array.isArray(item.tags)?item.tags:[],
+        description:item.description||'',
+        formats:[],
+        primaryFormat:'',
+        blacklight:Array.isArray(item.tags)&&item.tags.some(tag=>/blacklight|glow/i.test(tag)),
+        duration:null,
+        color:item.color||'',
+        orientation:item.orientation||''
       };
-      imgEl.onerror = () => tryNext();
-      tryNext();
+    }
+
+    function normalizeCanonical(item){
+      return {
+        id:String(item.id),
+        title:item.title||'Untitled project',
+        image:item.image_url||null,
+        season:item.season||'',
+        difficulty:item.difficulty||null,
+        tags:Array.isArray(item.tags)?item.tags:[],
+        description:item.description||'',
+        formats:Array.isArray(item.formats)?item.formats:[],
+        primaryFormat:item.primary_format||'',
+        blacklight:Boolean(item.blacklight),
+        duration:item.teaching_duration_minutes||null,
+        color:item.dominant_color||'',
+        orientation:item.orientation||''
+      };
+    }
+
+    async function loadCommandCenter(){
+      const items=[];
+      for(let offset=0;;offset+=100){
+        const response=await fetch(CC_URL.replace(/\/$/,'')+'/rest/v1/rpc/get_public_project_portfolio',{
+          method:'POST',
+          headers:{'Content-Type':'application/json','apikey':CC_KEY,'Authorization':'Bearer '+CC_KEY},
+          body:JSON.stringify({p_search:null,p_season:null,p_tag:null,p_limit:100,p_offset:offset})
+        });
+        if(!response.ok) throw new Error('Command Center portfolio request failed.');
+        const page=await response.json();
+        if(!Array.isArray(page)) throw new Error('Command Center returned an invalid portfolio response.');
+        items.push(...page.map(normalizeCanonical));
+        if(page.length<100) break;
+      }
+      return items;
+    }
+
+    async function loadLegacy(){
+      const response=await fetch(LEGACY_APP_URL+'?t='+Date.now());
+      if(!response.ok) throw new Error('Legacy portfolio request failed.');
+      const json=await response.json();
+      return (json.items||[]).map(normalizeLegacy);
+    }
+
+    async function load(){
+      els.error.hidden=true;
+      try{
+        let sourceLabel='Current portfolio';
+        if(CC_URL&&CC_KEY){
+          try{
+            data=await loadCommandCenter();
+            sourceLabel='Live Project Library';
+          }catch(error){
+            console.warn(error);
+            data=await loadLegacy();
+            sourceLabel='Current portfolio fallback';
+          }
+        }else{
+          data=await loadLegacy();
+        }
+        data=data.filter(item=>item.title&&item.image);
+        populateFilters();
+        els.source.hidden=false;
+        els.source.querySelector('span:last-child').textContent=sourceLabel;
+        render();
+      }catch(error){
+        els.count.textContent='Portfolio unavailable';
+        els.error.hidden=false;
+        els.error.textContent='We could not load the portfolio right now. Please refresh and try again.';
+        console.error(error);
+      }
+    }
+
+    function fill(select,values){
+      values.forEach(value=>{
+        const option=document.createElement('option');
+        option.value=value;
+        option.textContent=pretty(value);
+        select.appendChild(option);
+      });
+    }
+
+    function populateFilters(){
+      fill(els.season,uniq(data.map(item=>item.season)));
+      fill(els.format,uniq(data.flatMap(item=>item.formats.length?item.formats:[item.primaryFormat])));
+      fill(els.tag,uniq(data.flatMap(item=>item.tags)));
+      if(!data.some(item=>item.formats.length||item.primaryFormat)) els.format.closest('select').disabled=true;
+    }
+
+    function matches(item){
+      const q=els.q.value.trim().toLowerCase();
+      const search=[item.title,item.description,...item.tags,item.season,item.color,item.orientation].join(' ').toLowerCase();
+      if(q&&!search.includes(q)) return false;
+      if(els.season.value&&item.season!==els.season.value) return false;
+      if(els.format.value&&![...item.formats,item.primaryFormat].includes(els.format.value)) return false;
+      if(els.tag.value&&!item.tags.includes(els.tag.value)) return false;
+      if(els.experience.value==='blacklight'&&!item.blacklight) return false;
+      if(els.experience.value==='standard'&&item.blacklight) return false;
+      return true;
+    }
+
+    function chip(text){
+      const span=document.createElement('span');
+      span.className='chip';
+      span.textContent=text;
+      return span;
+    }
+
+    function openDetails(item){
+      els.detailImage.src=item.image||'';
+      els.detailImage.alt=item.title;
+      els.detailTitle.textContent=item.title;
+      els.detailDescription.textContent=item.description||'Contact Wine & Canvas Toledo for format and event availability.';
+      els.detailMeta.innerHTML='';
+      [
+        item.season,
+        item.primaryFormat&&pretty(item.primaryFormat),
+        item.blacklight?'Blacklight':null,
+        item.duration?item.duration+' minutes':null,
+        item.difficulty?'Difficulty '+item.difficulty:null,
+        ...item.tags.slice(0,8)
+      ].filter(Boolean).forEach(value=>els.detailMeta.appendChild(chip(value)));
+      els.dialog.showModal();
+    }
+
+    function card(item){
+      const button=document.createElement('button');
+      button.type='button';
+      button.className='card';
+      button.addEventListener('click',()=>openDetails(item));
+
+      const media=document.createElement('div');
+      media.className='thumb-wrap';
+      const img=document.createElement('img');
+      img.className='thumb';
+      img.loading='lazy';
+      img.decoding='async';
+      img.referrerPolicy='no-referrer';
+      img.src=item.image;
+      img.alt=item.title;
+      media.appendChild(img);
+
+      const body=document.createElement('div');
+      body.className='card-body';
+      const title=document.createElement('div');
+      title.className='title';
+      title.textContent=item.title;
+      const meta=document.createElement('div');
+      meta.className='meta';
+      meta.textContent=[
+        item.season,
+        item.primaryFormat?pretty(item.primaryFormat):null,
+        item.blacklight?'Blacklight':null
+      ].filter(Boolean).join(' · ')||'Wine & Canvas project';
+
+      const chips=document.createElement('div');
+      chips.className='chips';
+      item.tags.slice(0,4).forEach(tag=>chips.appendChild(chip(tag)));
+
+      body.append(title,meta,chips);
+      button.append(media,body);
+      return button;
     }
 
     function render(){
-      const items = filterItems();
-      els.count.textContent = `${items.length} of ${data.length} paintings`;
-
-      els.grid.innerHTML = '';
-      const frag = document.createDocumentFragment();
-
-      items.forEach(item => {
-        const node = els.tpl.content.cloneNode(true);
-        const a = node.querySelector('.card');
-        const img = node.querySelector('.thumb');
-        const title = node.querySelector('.title');
-        const chips = node.querySelector('.chips');
-        const sub = node.querySelector('.sub');
-
-        a.href = item.link;
-
-        // Use API-provided image + fallbacks
-        setImageWithFallback(img, item.image, item.fallbacks);
-        img.alt = item.cleanName || item.name || '';
-
-        title.textContent = item.cleanName || item.name || '';
-        const diffText = item.difficulty ? String(item.difficulty) : '–';
-        const seasonText = item.season || '–';
-        sub.textContent = `${seasonText} • ${diffText}`;
-
-        (item.tags || []).slice(0,6).forEach(t => {
-          const c = document.createElement('span');
-          c.className = 'chip'; c.textContent = t;
-          chips.appendChild(c);
-        });
-
-        frag.appendChild(node);
-      });
-      
-      els.grid.appendChild(frag);
+      const matchesAll=data.filter(matches);
+      const shown=matchesAll.slice(0,visibleCount);
+      els.grid.innerHTML='';
+      shown.forEach(item=>els.grid.appendChild(card(item)));
+      els.count.textContent=matchesAll.length+' '+(matchesAll.length===1?'project':'projects');
+      els.more.hidden=shown.length>=matchesAll.length;
+      if(!matchesAll.length){
+        const empty=document.createElement('div');
+        empty.className='empty';
+        empty.textContent='No projects match those filters. Try clearing one or two filters.';
+        els.grid.appendChild(empty);
+      }
     }
-    init();
+
+    [els.q,els.season,els.format,els.experience,els.tag].forEach(control=>{
+      control.addEventListener('input',()=>{visibleCount=PAGE_SIZE;render();});
+    });
+    els.more.addEventListener('click',()=>{visibleCount+=PAGE_SIZE;render();});
+    els.close.addEventListener('click',()=>els.dialog.close());
+    els.dialog.addEventListener('click',event=>{if(event.target===els.dialog) els.dialog.close();});
+
+    load();
   </script>
 </body>
 </html>
