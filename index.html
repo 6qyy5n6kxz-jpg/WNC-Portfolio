@@ -158,6 +158,7 @@
         id:String(item.id||crypto.randomUUID()),
         title:cleanName(item.name||item.title),
         image:item.image||item.src||null,
+        imageFallbacks:Array.isArray(item.fallbacks)?item.fallbacks:[],
         season:item.season||'',
         difficulty:item.difficulty||null,
         tags:Array.isArray(item.tags)?item.tags:[],
@@ -176,6 +177,7 @@
         id:String(item.id),
         title:item.title||'Untitled project',
         image:item.image_url||null,
+        imageFallbacks:Array.isArray(item.image_fallbacks)?item.image_fallbacks:[],
         season:item.season||'',
         difficulty:item.difficulty||null,
         tags:Array.isArray(item.tags)?item.tags:[],
@@ -278,7 +280,10 @@
     }
 
     function openDetails(item){
-      els.detailImage.src=item.image||'';
+      const detailSources=[item.image,...(item.imageFallbacks||[])].filter(Boolean);
+      let detailIndex=0;
+      els.detailImage.src=detailSources[detailIndex]||'';
+      els.detailImage.onerror=()=>{detailIndex+=1;if(detailSources[detailIndex])els.detailImage.src=detailSources[detailIndex];};
       els.detailImage.alt=item.title;
       els.detailTitle.textContent=item.title;
       els.detailDescription.textContent=item.description||'Contact Wine & Canvas Toledo for format and event availability.';
@@ -307,8 +312,11 @@
       img.loading='lazy';
       img.decoding='async';
       img.referrerPolicy='no-referrer';
-      img.src=item.image;
+      const sources=[item.image,...(item.imageFallbacks||[])].filter(Boolean);
+      let sourceIndex=0;
+      img.src=sources[sourceIndex]||'';
       img.alt=item.title;
+      img.onerror=()=>{sourceIndex+=1;if(sources[sourceIndex])img.src=sources[sourceIndex];};
       media.appendChild(img);
 
       const body=document.createElement('div');
